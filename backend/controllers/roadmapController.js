@@ -4,7 +4,9 @@ const Roadmap = require('../models/Roadmap');
 exports.getRoadmapByDomain = async (req, res) => {
   try {
     const { domain } = req.params;
-    const roadmap = await Roadmap.findOne({ domain });
+
+    // Use case-insensitive regular expression
+    const roadmap = await Roadmap.findOne({ domain: new RegExp(`^${domain}$`, 'i') });
 
     if (!roadmap) {
       return res.status(404).json({ message: 'Roadmap not found for this domain' });
@@ -15,6 +17,7 @@ exports.getRoadmapByDomain = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 // Add or update roadmap (admin or protected route)
 exports.addOrUpdateRoadmap = async (req, res) => {
