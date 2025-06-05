@@ -12,9 +12,9 @@ const seedRoadmaps = async () => {
   try {
     await Roadmap.deleteMany({}); 
 
-    const roadmaps = [
-      {
-        domain: "MERN Stack",
+    const roadmap = new Roadmap{
+  domain: 'MERN Stack',
+  slug: slugify('MERN Stack'),
   milestones: [
     {
       title: "Learn HTML, CSS, JS",

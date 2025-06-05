@@ -9,9 +9,11 @@ const milestoneSchema = new mongoose.Schema({
 });
 
 const roadmapSchema = new mongoose.Schema({
-  domain: { type: String, required: true, unique: true },  // e.g., MERN, AI/ML
+  domain: { type: String, required: true },       
+  slug: { type: String, required: true, unique: true }, 
   milestones: [milestoneSchema],
   createdAt: { type: Date, default: Date.now },
 });
+
 
 module.exports = mongoose.model('Roadmap', roadmapSchema);
