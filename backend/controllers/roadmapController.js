@@ -5,7 +5,7 @@ const slugify = (text) => {
   return text.toString().toLowerCase().trim().replace(/\s+/g, '-');
 };
 
-// Get roadmap by domain (using slug)
+// GET /api/roadmaps/:domain
 exports.getRoadmapByDomain = async (req, res) => {
   try {
     const { domain } = req.params;
@@ -19,34 +19,36 @@ exports.getRoadmapByDomain = async (req, res) => {
 
     res.json(roadmap);
   } catch (error) {
+    console.error('Error fetching roadmap:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Add or update roadmap (admin or protected route)
+// POST /api/roadmaps (Create or Update)
 exports.addOrUpdateRoadmap = async (req, res) => {
   try {
     const { domain, milestones } = req.body;
 
-    if (!domain || !milestones) {
-      return res.status(400).json({ message: 'Please provide domain and milestones' });
+    if (!domain || !Array.isArray(milestones)) {
+      return res.status(400).json({ message: 'Please provide domain and milestones (as array)' });
     }
 
-    const domainSlug = slugify(domain);
-
-    let roadmap = await Roadmap.findOne({ slug: domainSlug });
+    const slug = slugify(domain);
+    let roadmap = await Roadmap.findOne({ slug });
 
     if (roadmap) {
-      roadmap.domain = domain; // Keep the readable domain
+      roadmap.domain = domain; // maintain updated domain name
       roadmap.milestones = milestones;
       await roadmap.save();
       return res.json({ message: 'Roadmap updated successfully', roadmap });
     }
 
-    roadmap = new Roadmap({ domain, slug: domainSlug, milestones });
+    roadmap = new Roadmap({ domain, slug, milestones });
     await roadmap.save();
+
     res.status(201).json({ message: 'Roadmap created successfully', roadmap });
   } catch (error) {
+    console.error('Error creating/updating roadmap:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
