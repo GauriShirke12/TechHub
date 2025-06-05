@@ -8,60 +8,65 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.log(err));
 
+// Slugify utility
+const slugify = (text) => text.toLowerCase().trim().replace(/\s+/g, '-');
+
 const seedRoadmaps = async () => {
   try {
-    await Roadmap.deleteMany({}); 
+    await Roadmap.deleteMany({}); // Clear previous data
 
-    const roadmap = new Roadmap{
-  domain: 'MERN Stack',
-  slug: slugify('MERN Stack'),
-  milestones: [
-    {
-      title: "Learn HTML, CSS, JS",
-      description: "Basics of web development",
-      order: 1,
-      quizzes: ["html-basics", "css-fundamentals"],
-      projects: ["build a portfolio"]
-    },
-    {
-      title: "Master React",
-      description: "Component-based UI library",
-      order: 2,
-      quizzes: ["react-hooks", "react-routing"],
-      projects: ["build a todo app"]
-    },
-    {
-      title: "Understand Node.js and Express",
-      description: "Server-side development",
-      order: 3,
-      quizzes: ["node-basics", "express-routing"],
-      projects: ["build a REST API"]
-    },
-    {
-      title: "Learn MongoDB",
-      description: "NoSQL database basics",
-      order: 4,
-      quizzes: ["mongodb-basics", "mongoose"],
-      projects: ["build a CRUD app"]
-    },
-    {
-      title: "Version Control with Git and GitHub",
-      description: "Source code management",
-      order: 5,
-      quizzes: ["git-basics", "github-workflow"],
-      projects: []
-    },
-    {
-      title: "Explore Additional Tools & Frameworks",
-      description: "Bootstrap, security basics, deployment",
-      order: 6,
-      quizzes: ["bootstrap", "security-fundamentals"],
-      projects: ["deploy your app"]
-    }
-  ]
+    const roadmaps = [
+      {
+        domain: 'MERN Stack',
+        slug: slugify('MERN Stack'),
+        milestones: [
+          {
+            title: "Learn HTML, CSS, JS",
+            description: "Basics of web development",
+            order: 1,
+            quizzes: ["html-basics", "css-fundamentals"],
+            projects: ["build a portfolio"]
+          },
+          {
+            title: "Master React",
+            description: "Component-based UI library",
+            order: 2,
+            quizzes: ["react-hooks", "react-routing"],
+            projects: ["build a todo app"]
+          },
+          {
+            title: "Understand Node.js and Express",
+            description: "Server-side development",
+            order: 3,
+            quizzes: ["node-basics", "express-routing"],
+            projects: ["build a REST API"]
+          },
+          {
+            title: "Learn MongoDB",
+            description: "NoSQL database basics",
+            order: 4,
+            quizzes: ["mongodb-basics", "mongoose"],
+            projects: ["build a CRUD app"]
+          },
+          {
+            title: "Version Control with Git and GitHub",
+            description: "Source code management",
+            order: 5,
+            quizzes: ["git-basics", "github-workflow"],
+            projects: []
+          },
+          {
+            title: "Explore Additional Tools & Frameworks",
+            description: "Bootstrap, security basics, deployment",
+            order: 6,
+            quizzes: ["bootstrap", "security-fundamentals"],
+            projects: ["deploy your app"]
+          }
+        ]
       },
       {
         domain: 'AI/ML',
+        slug: slugify('AI/ML'),
         milestones: [
           {
             title: 'Step 1: Learn Python',
@@ -109,6 +114,7 @@ const seedRoadmaps = async () => {
       },
       {
         domain: 'Data Science',
+        slug: slugify('Data Science'),
         milestones: [
           {
             title: 'Step 1: Learn Python & Data Analysis',
