@@ -1,6 +1,6 @@
 const express = require('express');
 const { getRoadmapByDomain, addOrUpdateRoadmap } = require('../controllers/roadmapController');
-const { protect } = require('../middleware/authMiddleware');  // Protect add/update route if needed
+const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
