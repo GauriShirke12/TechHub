@@ -1,8 +1,13 @@
 const Roadmap = require('../models/Roadmap');
 
-// Utility: Convert domain to slug (e.g., "MERN Stack" → "mern-stack")
+// Utility: Convert domain to slug (e.g., "AI/ML" → "ai-ml")
 const slugify = (text) => {
-  return text.toString().toLowerCase().trim().replace(/\s+/g, '-');
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')  // Replace non-alphanumeric chars with dashes
+    .replace(/^-+|-+$/g, '');     // Trim starting and trailing dashes
 };
 
 // GET /api/roadmaps/:domain
