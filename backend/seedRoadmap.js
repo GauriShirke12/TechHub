@@ -9,10 +9,16 @@ const slugify = (text) => text.toLowerCase().trim().replace(/\s+/g, '-');
 
 const seedRoadmaps = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
+
     console.log('MongoDB connected');
 
-    await Roadmap.deleteMany({}); 
+    await Roadmap.deleteMany();
+    console.log('Existing roadmaps cleared');
+
 
     const roadmaps = [
       {
@@ -139,13 +145,14 @@ const seedRoadmaps = async () => {
       }
     ];
 
-    await Roadmap.insertMany(roadmaps);
+     await Roadmap.insertMany(roadmaps);
     console.log('Roadmaps seeded successfully');
-    mongoose.disconnect();
-  } catch (error) {
-    console.error('Seeding error:', error);
-    mongoose.disconnect();
-    process.exit(1);
+  } catch (err) {
+    console.error('Seeding failed:', err);
+  } finally {
+    await mongoose.disconnect();
+    console.log('MongoDB disconnected');
+    process.exit();
   }
 };
 
