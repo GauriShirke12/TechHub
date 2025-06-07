@@ -4,8 +4,14 @@ const bcrypt = require('bcryptjs');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
-const generateToken = (user) => {
-  return jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+// Generate access token
+const generateAccessToken = (user) => {
+  return jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '15m' });
+};
+
+// Generate refresh token
+const generateRefreshToken = (user) => {
+  return jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
 };
 
 // @desc    Register a new user
@@ -33,8 +39,15 @@ exports.registerUser = async (req, res) => {
   });
 
   if (user) {
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
     res.status(201).json({
-      token: generateToken(user),
+      token: accessToken,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
@@ -63,8 +76,15 @@ exports.loginUser = async (req, res) => {
     return res.status(401).json({ message: 'Invalid credentials' });
   }
 
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
+
+  user.refreshToken = refreshToken;
+  await user.save();
+
   res.json({
-    token: generateToken(user),
+    token: accessToken,
+    refreshToken,
     user: {
       id: user._id,
       name: user.name,
@@ -91,7 +111,6 @@ exports.socialLogin = async (req, res) => {
       user = await User.findOne({ googleId: socialId }) || await User.findOne({ email });
       if (user) {
         user.googleId = socialId;
-        await user.save();
       } else {
         user = await User.create({ name, email, googleId: socialId });
       }
@@ -99,7 +118,6 @@ exports.socialLogin = async (req, res) => {
       user = await User.findOne({ githubId: socialId }) || await User.findOne({ email });
       if (user) {
         user.githubId = socialId;
-        await user.save();
       } else {
         user = await User.create({ name, email, githubId: socialId });
       }
@@ -107,8 +125,15 @@ exports.socialLogin = async (req, res) => {
       return res.status(400).json({ message: 'Unsupported provider' });
     }
 
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
     res.json({
-      token: generateToken(user),
+      token: accessToken,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
@@ -121,7 +146,6 @@ exports.socialLogin = async (req, res) => {
   }
 };
 
-// ✅ NEW: Get logged-in user's profile
 // @desc    Get user profile
 // @route   GET /api/auth/profile
 // @access  Private
@@ -136,3 +160,39 @@ exports.getUserProfile = async (req, res) => {
     interests: user.interests,
   });
 };
+
+// @desc    Refresh access token
+// @route   POST /api/auth/refresh-token
+// @access  Public
+exports.refreshAccessToken = async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    return res.status(401).json({ message: 'No refresh token provided' });
+  }
+
+  try {
+    // Verify refresh token
+    const decoded = jwt.verify(refreshToken, JWT_SECRET);
+
+    const user = await User.findById(decoded.id);
+    if (!user || user.refreshToken !== refreshToken) {
+      return res.status(403).json({ message: 'Invalid refresh token' });
+    }
+
+    // Generate new access token
+    const newAccessToken = generateAccessToken(user);
+    
+    // Optionally: rotate refresh token
+    const newRefreshToken = generateRefreshToken(user);
+    user.refreshToken = newRefreshToken;
+    await user.save();
+
+    res.json({
+      token: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
+  } catch (err) {
+    res.status(403).json({ message: 'Invalid or expired refresh token' });
+  }
+};
+

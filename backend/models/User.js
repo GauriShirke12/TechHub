@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String }, // optional for social logins
   googleId: { type: String },
   githubId: { type: String },
+   refreshToken: { type: String },
   interests: [{ type: String }],
 }, { timestamps: true });
 
