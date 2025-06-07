@@ -1,22 +1,19 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const sendEmail = require('../utils/sendEmail');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
-// Generate access token
-const generateAccessToken = (user) => {
-  return jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '15m' });
-};
+// Generate tokens
+const generateAccessToken = (user) =>
+  jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '15m' });
 
-// Generate refresh token
-const generateRefreshToken = (user) => {
-  return jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-};
+const generateRefreshToken = (user) =>
+  jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
+// Register user
 exports.registerUser = async (req, res) => {
   const { name, email, password, interests } = req.body;
 
@@ -30,45 +27,52 @@ exports.registerUser = async (req, res) => {
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
+  const emailToken = crypto.randomBytes(32).toString('hex');
 
   const user = await User.create({
     name,
     email,
     password: hashedPassword,
     interests: interests || [],
+    emailToken,
+    isVerified: false,
   });
 
-  if (user) {
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+  const verificationUrl = `${process.env.CLIENT_URL}/verify-email?token=${emailToken}`;
+  await sendEmail(email, 'Verify your email', `
+    <p>Hello ${name},</p>
+    <p>Click the link below to verify your email:</p>
+    <a href="${verificationUrl}">${verificationUrl}</a>
+  `);
 
-    user.refreshToken = refreshToken;
-    await user.save();
-
-    res.status(201).json({
-      token: accessToken,
-      refreshToken,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        interests: user.interests,
-      },
-    });
-  } else {
-    res.status(400).json({ message: 'Invalid user data' });
-  }
+  res.status(201).json({ message: 'Verification email sent. Please check your inbox.' });
 };
 
-// @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
+// Verify email
+exports.verifyEmail = async (req, res) => {
+  const { token } = req.body;
+  const user = await User.findOne({ emailToken: token });
+
+  if (!user) return res.status(400).json({ message: 'Invalid or expired token' });
+
+  user.emailToken = null;
+  user.isVerified = true;
+  await user.save();
+
+  res.status(200).json({ message: 'Email verified successfully' });
+};
+
+// Login
 exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ email });
-  if (!user) {
+  if (!user || !user.password) {
     return res.status(401).json({ message: 'Invalid credentials' });
+  }
+
+  if (!user.isVerified) {
+    return res.status(403).json({ message: 'Please verify your email before logging in' });
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
@@ -78,7 +82,6 @@ exports.loginUser = async (req, res) => {
 
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
-
   user.refreshToken = refreshToken;
   await user.save();
 
@@ -94,9 +97,7 @@ exports.loginUser = async (req, res) => {
   });
 };
 
-// @desc    Social login (Google, GitHub)
-// @route   POST /api/auth/social-login
-// @access  Public
+// Social login
 exports.socialLogin = async (req, res) => {
   const { provider, socialId, name, email } = req.body;
 
@@ -106,28 +107,18 @@ exports.socialLogin = async (req, res) => {
 
   try {
     let user;
-
     if (provider === 'google') {
       user = await User.findOne({ googleId: socialId }) || await User.findOne({ email });
-      if (user) {
-        user.googleId = socialId;
-      } else {
-        user = await User.create({ name, email, googleId: socialId });
-      }
+      user ? user.googleId = socialId : user = await User.create({ name, email, googleId: socialId, isVerified: true });
     } else if (provider === 'github') {
       user = await User.findOne({ githubId: socialId }) || await User.findOne({ email });
-      if (user) {
-        user.githubId = socialId;
-      } else {
-        user = await User.create({ name, email, githubId: socialId });
-      }
+      user ? user.githubId = socialId : user = await User.create({ name, email, githubId: socialId, isVerified: true });
     } else {
       return res.status(400).json({ message: 'Unsupported provider' });
     }
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
-
     user.refreshToken = refreshToken;
     await user.save();
 
@@ -146,9 +137,7 @@ exports.socialLogin = async (req, res) => {
   }
 };
 
-// @desc    Get user profile
-// @route   GET /api/auth/profile
-// @access  Private
+// Get profile
 exports.getUserProfile = async (req, res) => {
   const user = req.user;
   if (!user) return res.status(404).json({ message: 'User not found' });
@@ -161,9 +150,7 @@ exports.getUserProfile = async (req, res) => {
   });
 };
 
-// @desc    Refresh access token
-// @route   POST /api/auth/refresh-token
-// @access  Public
+// Refresh token
 exports.refreshAccessToken = async (req, res) => {
   const { refreshToken } = req.body;
   if (!refreshToken) {
@@ -171,18 +158,14 @@ exports.refreshAccessToken = async (req, res) => {
   }
 
   try {
-    // Verify refresh token
     const decoded = jwt.verify(refreshToken, JWT_SECRET);
-
     const user = await User.findById(decoded.id);
+
     if (!user || user.refreshToken !== refreshToken) {
       return res.status(403).json({ message: 'Invalid refresh token' });
     }
 
-    // Generate new access token
     const newAccessToken = generateAccessToken(user);
-    
-    // Optionally: rotate refresh token
     const newRefreshToken = generateRefreshToken(user);
     user.refreshToken = newRefreshToken;
     await user.save();
@@ -196,3 +179,19 @@ exports.refreshAccessToken = async (req, res) => {
   }
 };
 
+// Logout
+exports.logoutUser = async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return res.sendStatus(204);
+
+  try {
+    const user = await User.findOne({ refreshToken });
+    if (user) {
+      user.refreshToken = null;
+      await user.save();
+    }
+    return res.status(200).json({ message: 'Logged out successfully' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Logout failed' });
+  }
+};
