@@ -10,6 +10,7 @@ const {
   loginUser,
   socialLogin,
   getUserProfile,
+  refreshAccessToken,
 } = require('../controllers/authController');
 
 // Validator
@@ -32,6 +33,10 @@ router.post('/login', loginUser);
 // @route   POST /api/auth/social-login
 // @desc    Social login with Google/GitHub
 router.post('/social-login', socialLogin);
+
+// @route   POST /api/auth/refresh-token
+// @desc    Refresh access token
+router.post('/refresh-token', refreshAccessToken);
 
 // @route   GET /api/auth/profile
 // @desc    Get logged-in user's profile (Protected)
