@@ -4,12 +4,11 @@ const bcrypt = require('bcryptjs');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
-// Generate JWT token
-const generateToken = (id) => {
-  return jwt.sign({ id }, JWT_SECRET, { expiresIn: '7d' });
+const generateToken = (user) => {
+  return jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
 };
 
-// @desc    Register new user
+// @desc    Register a new user
 // @route   POST /api/auth/register
 // @access  Public
 exports.registerUser = async (req, res) => {
@@ -25,20 +24,27 @@ exports.registerUser = async (req, res) => {
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
+
   const user = await User.create({
     name,
     email,
     password: hashedPassword,
-    interests,
+    interests: interests || [],
   });
 
-  res.status(201).json({
-    _id: user._id,
-    name: user.name,
-    email: user.email,
-    interests: user.interests,
-    token: generateToken(user._id),
-  });
+  if (user) {
+    res.status(201).json({
+      token: generateToken(user),
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        interests: user.interests,
+      },
+    });
+  } else {
+    res.status(400).json({ message: 'Invalid user data' });
+  }
 };
 
 // @desc    Login user
@@ -48,8 +54,8 @@ exports.loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ email });
-  if (!user || !user.password) {
-    return res.status(400).json({ message: 'Invalid credentials' });
+  if (!user) {
+    return res.status(401).json({ message: 'Invalid credentials' });
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
@@ -58,50 +64,59 @@ exports.loginUser = async (req, res) => {
   }
 
   res.json({
-    _id: user._id,
-    name: user.name,
-    email: user.email,
-    interests: user.interests,
-    token: generateToken(user._id),
+    token: generateToken(user),
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      interests: user.interests,
+    },
   });
 };
 
-// @desc    Social login
+// @desc    Social login (Google, GitHub)
 // @route   POST /api/auth/social-login
 // @access  Public
 exports.socialLogin = async (req, res) => {
   const { provider, socialId, name, email } = req.body;
 
   if (!provider || !socialId || !email) {
-    return res.status(400).json({ message: 'Missing required fields' });
+    return res.status(400).json({ message: 'Missing fields' });
   }
 
   try {
     let user;
 
-    const socialKey = provider === 'google' ? 'googleId' : provider === 'github' ? 'githubId' : null;
-    if (!socialKey) return res.status(400).json({ message: 'Unsupported provider' });
-
-    user = await User.findOne({ [socialKey]: socialId }) || await User.findOne({ email });
-
-    if (user) {
-      if (!user[socialKey]) {
-        user[socialKey] = socialId;
+    if (provider === 'google') {
+      user = await User.findOne({ googleId: socialId }) || await User.findOne({ email });
+      if (user) {
+        user.googleId = socialId;
         await user.save();
+      } else {
+        user = await User.create({ name, email, googleId: socialId });
+      }
+    } else if (provider === 'github') {
+      user = await User.findOne({ githubId: socialId }) || await User.findOne({ email });
+      if (user) {
+        user.githubId = socialId;
+        await user.save();
+      } else {
+        user = await User.create({ name, email, githubId: socialId });
       }
     } else {
-      user = await User.create({ name, email, [socialKey]: socialId });
+      return res.status(400).json({ message: 'Unsupported provider' });
     }
 
     res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      interests: user.interests,
-      token: generateToken(user._id),
+      token: generateToken(user),
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        interests: user.interests,
+      },
     });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
 };
