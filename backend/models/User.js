@@ -7,6 +7,9 @@ const userSchema = new mongoose.Schema({
   googleId: { type: String },
   githubId: { type: String },
    refreshToken: { type: String },
+emailToken: { type: String },
+isVerified: { type: Boolean, default: false },
+
   interests: [{ type: String }],
 }, { timestamps: true });
 

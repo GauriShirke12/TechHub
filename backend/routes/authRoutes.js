@@ -1,23 +1,19 @@
 const express = require('express');
 const router = express.Router();
-
-// Middleware
-const { protect } = require('../middleware/authMiddleware');
-
-// Controller functions
 const {
   registerUser,
   loginUser,
   socialLogin,
   getUserProfile,
   refreshAccessToken,
+  logoutUser,
+  verifyEmail
 } = require('../controllers/authController');
 
-// Validator
+const { protect } = require('../middleware/authMiddleware');
 const { validateEmail } = require('../utils/validators');
 
-// @route   POST /api/auth/register
-// @desc    Register new user with email validation
+// Register
 router.post('/register', (req, res, next) => {
   const { email } = req.body;
   if (!validateEmail(email)) {
@@ -26,20 +22,22 @@ router.post('/register', (req, res, next) => {
   return registerUser(req, res, next);
 });
 
-// @route   POST /api/auth/login
-// @desc    Login user
+// Verify email
+router.post('/verify-email', verifyEmail);
+
+// Login
 router.post('/login', loginUser);
 
-// @route   POST /api/auth/social-login
-// @desc    Social login with Google/GitHub
+// Social Login
 router.post('/social-login', socialLogin);
 
-// @route   POST /api/auth/refresh-token
-// @desc    Refresh access token
+// Refresh token
 router.post('/refresh-token', refreshAccessToken);
 
-// @route   GET /api/auth/profile
-// @desc    Get logged-in user's profile (Protected)
+// Get user profile
 router.get('/profile', protect, getUserProfile);
+
+// Logout
+router.post('/logout', logoutUser);
 
 module.exports = router;
