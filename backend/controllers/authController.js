@@ -120,3 +120,19 @@ exports.socialLogin = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// ✅ NEW: Get logged-in user's profile
+// @desc    Get user profile
+// @route   GET /api/auth/profile
+// @access  Private
+exports.getUserProfile = async (req, res) => {
+  const user = req.user;
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  res.json({
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    interests: user.interests,
+  });
+};
